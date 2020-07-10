@@ -392,6 +392,17 @@ export async function type(text: string) {
  *   go('/start?tutorial=quickstart');
  */
 export async function go(path: string): Promise<void> {
-  log(`go(${path})`);
-  await browser.get(path, PAGE_LOAD_TIMEOUT);
+  let navigatePath = path;
+
+  // Add cache invalidation param
+  // if it's set in protractor config
+  const cacheBustingParam = browser.params.cacheBustingParam;
+  if(cacheBustingParam) {
+    const urlObject = new URL(path, 'https://dummy');
+    urlObject.searchParams.set(cacheBustingParam, Date.now().toString());
+    navigatePath =`${urlObject.pathname}${urlObject.search}`;
+  }
+
+  log(`go(${navigatePath})`);
+  await browser.get(navigatePath, PAGE_LOAD_TIMEOUT);
 }
