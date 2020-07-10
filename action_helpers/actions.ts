@@ -12,6 +12,7 @@
 
 import {browser, by, protractor, WebElement} from 'protractor';
 import * as webdriver from 'selenium-webdriver';
+import {URL} from 'url'
 
 import {BrowserSideOptions, retryingFind} from './find';
 import {FlexibleLocator, Position, PositionalLocator} from './locator_types';
