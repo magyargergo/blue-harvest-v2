@@ -342,34 +342,34 @@ const baseAction = new ChainedAction(defaultAction);
 
 export const find = baseAction.find.bind(baseAction);
 
-export const see = baseAction.see.bind(baseAction);
+export const see = baseAction.see.bind(baseAction) as (locator: FlexibleLocator, options?: BrowserSideOptions) => Promise<boolean>;
 
-export const click = baseAction.click.bind(baseAction);
+export const click = baseAction.click.bind(baseAction) as (locator: FlexibleLocator) => Promise<void>;
 
-export const longPress = baseAction.longPress.bind(baseAction);
+export const longPress = baseAction.longPress.bind(baseAction) as (locator: FlexibleLocator) => Promise<void>;
 
-export const tap = baseAction.tap.bind(baseAction);
+export const tap = baseAction.tap.bind(baseAction) as (locator: FlexibleLocator) => Promise<void>;
 
-export const mouseOver = baseAction.mouseOver.bind(baseAction);
+export const mouseOver = baseAction.mouseOver.bind(baseAction) as (locator: FlexibleLocator) => Promise<void>;
 
-export const uploadFile = baseAction.uploadFile.bind(baseAction);
+export const uploadFile = baseAction.uploadFile.bind(baseAction) as (filepath: string) => Promise<void>;
 
-export const not = baseAction.not;
+export const not = baseAction.not as {see: (locator: FlexibleLocator, options?: BrowserSideOptions) => Promise<boolean>};
 
 export const slow = new ChainedAction(defaultAction.setSlow(Slowness.SLOW));
 
 export const agonizinglySlow =
     new ChainedAction(defaultAction.setSlow(Slowness.AGONIZINGLY_SLOW));
 
-export const under = baseAction.under.bind(baseAction);
+export const under = baseAction.under.bind(baseAction) as (locator: FlexibleLocator) => ChainedAction;
 
-export const leftOf = baseAction.leftOf.bind(baseAction);
+export const leftOf = baseAction.leftOf.bind(baseAction) as (locator: FlexibleLocator) => ChainedAction;
 
-export const rightOf = baseAction.rightOf.bind(baseAction);
+export const rightOf = baseAction.rightOf.bind(baseAction) as (locator: FlexibleLocator) => ChainedAction;
 
-export const below = baseAction.below.bind(baseAction);
+export const below = baseAction.below.bind(baseAction) as (locator: FlexibleLocator) => ChainedAction;
 
-export const inside = baseAction.inside.bind(baseAction);
+export const inside = baseAction.inside.bind(baseAction) as (locator: FlexibleLocator) => ChainedAction;
 
 /**
  * Types text into the browser (into the currently active element).
