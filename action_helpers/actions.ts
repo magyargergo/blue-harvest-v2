@@ -393,7 +393,6 @@ export async function type(text: string) {
  *   go('/start?tutorial=quickstart');
  */
 export async function go(path: string): Promise<void> {
-  let navigatePath = path;
   const urlObject = new URL(path, 'https://dummy');
 
   // Add cache invalidation param if set in Protractor config
@@ -406,7 +405,8 @@ export async function go(path: string): Promise<void> {
   if (abtestOptOutParam) {
     urlObject.searchParams.set(abtestOptOutParam, 'true');
   }
+  const navigatePath = `${urlObject.pathname}${urlObject.search}`;
 
-  log(`go(${urlObject.pathname}${urlObject.search})`);
+  log(`go(${navigatePath})`);
   await browser.get(navigatePath, PAGE_LOAD_TIMEOUT);
 }
