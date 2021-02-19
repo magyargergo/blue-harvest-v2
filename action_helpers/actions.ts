@@ -394,16 +394,19 @@ export async function type(text: string) {
  */
 export async function go(path: string): Promise<void> {
   let navigatePath = path;
+  const urlObject = new URL(path, 'https://dummy');
 
-  // Add cache invalidation param
-  // if it's set in protractor config
+  // Add cache invalidation param if set in Protractor config
   const cacheBustingParam = browser.params.cacheBustingParam;
   if(cacheBustingParam) {
-    const urlObject = new URL(path, 'https://dummy');
     urlObject.searchParams.set(cacheBustingParam, Date.now().toString());
-    navigatePath =`${urlObject.pathname}${urlObject.search}`;
+  }
+  // Add A/B test opt param if set in Protractor config
+  const abtestOptOutParam = browser.params.abtestOptOutParam;
+  if (abtestOptOutParam) {
+    urlObject.searchParams.set(abtestOptOutParam, 'true');
   }
 
-  log(`go(${navigatePath})`);
+  log(`go(${urlObject.pathname}${urlObject.search})`);
   await browser.get(navigatePath, PAGE_LOAD_TIMEOUT);
 }
