@@ -244,12 +244,17 @@ var browserSideFind = function(locators, opt_options) {
       var maybeDisplayed = all.filter(isMaybeDisplayed);
       if (maybeDisplayed.length == 1 && shouldAutoScroll(maybeDisplayed[0])) {
         maybeDisplayed[0].scrollIntoView();
-        var fixedHeader = document.querySelector('[data-testing="sticky-header"]');
-        if (fixedHeader) {
-          var fixedHeaderHeight = fixedHeader.getBoundingClientRect().height;
+        // Sticky headers can stack so get all active and compute total height.
+        var stickyHeaders = document.querySelectorAll('[data-testing="sticky-header"]');
+        var stickyHeaderTotalHeight = 0;
+        stickyHeaders.forEach(function(stickyHeader) {
+          const headerHeight = stickyHeader.getBoundingClientRect().height;
+          stickyHeaderTotalHeight += headerHeight;
+        });
+        if (stickyHeaderTotalHeight) {
           var scrollY = window.scrollY;
-          if (scrollY && fixedHeaderHeight) {
-            window.scroll(0, scrollY - fixedHeaderHeight);
+          if (scrollY) {
+            window.scroll(0, scrollY - stickyHeaderTotalHeight);
           }
         }
         if (hasCorrectDisplayStatus(maybeDisplayed[0])) {
