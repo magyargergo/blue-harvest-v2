@@ -1,6 +1,6 @@
 {
   "name": "@laurentgoudet/blue-harvest",
-  "version": "0.3.1-fork.18",
+  "version": "0.3.1-fork.19",
   "description": "protractor helpers",
   "scripts": {
     "tsc": "tsc",
