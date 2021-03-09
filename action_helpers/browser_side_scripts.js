@@ -251,7 +251,8 @@ var browserSideFind = function(locators, opt_options) {
           const headerHeight = stickyHeader.getBoundingClientRect().height;
           stickyHeaderTotalHeight += headerHeight;
         });
-        if (stickyHeaderTotalHeight) {
+        if (stickyHeaderTotalHeight &&
+          maybeDisplayed[0].getBoundingClientRect().top < stickyHeaderTotalHeight) {
           var scrollY = window.scrollY;
           if (scrollY) {
             window.scroll(0, scrollY - stickyHeaderTotalHeight);
