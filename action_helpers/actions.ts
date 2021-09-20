@@ -400,10 +400,13 @@ export async function go(path: string): Promise<void> {
   if(cacheBustingParam) {
     urlObject.searchParams.set(cacheBustingParam, Date.now().toString());
   }
-  // Add A/B test opt param if set in Protractor config
-  const abtestOptOutParam = browser.params.abtestOptOutParam;
-  if (abtestOptOutParam) {
-    urlObject.searchParams.set(abtestOptOutParam, 'true');
+
+  // Add custom params if set in Protractor config
+  const customQueryParams = browser.params.customQueryParams;
+  if (customQueryParams) {
+    for (const customQueryParam of customQueryParams) {
+      urlObject.searchParams.set(customQueryParam, 'true');
+    }
   }
   const navigatePath = `${urlObject.pathname}${urlObject.search}`;
 
