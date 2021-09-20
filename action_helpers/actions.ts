@@ -404,8 +404,8 @@ export async function go(path: string): Promise<void> {
   // Add custom params if set in Protractor config
   const customQueryParams = browser.params.customQueryParams;
   if (customQueryParams) {
-    for (const customQueryParam of customQueryParams) {
-      urlObject.searchParams.set(customQueryParam, 'true');
+    for (const customQueryParamName in customQueryParams) {
+      urlObject.searchParams.set(customQueryParamName, customQueryParams[customQueryParamName]);
     }
   }
   const navigatePath = `${urlObject.pathname}${urlObject.search}`;
