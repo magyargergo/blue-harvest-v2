@@ -10,7 +10,7 @@
  *    click('Order Sandwich');
  */
 
-import {Actions, browser, by, WebElement} from 'protractor';
+import {browser, by, WebElement} from 'protractor';
 import * as webdriver from 'selenium-webdriver';
 import {URL} from 'url'
 
