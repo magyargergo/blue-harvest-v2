@@ -254,8 +254,8 @@ export class ChainedAction {
         // but a bug in webdriver bindings causes issues with this and the
         // control flow:
         //   await browser.actions().click(response).perform();
-        await new Actions(browser.driver).mouseMove(response).perform();
-        await new Actions(browser.driver).click().perform();
+        await browser.actions().move({origin: response}).perform();
+        await browser.actions().click().perform();
       } else {
         throw e;
       }
@@ -313,7 +313,7 @@ export class ChainedAction {
     log(description);
 
     const element = await this.getElement(locator, description);
-    await new Actions(browser.driver).mouseMove(element).perform();
+    await browser.actions().move({origin: element}).perform();
     await browser.waitForAngular();
   }
 
