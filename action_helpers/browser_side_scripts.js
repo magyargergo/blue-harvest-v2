@@ -549,8 +549,7 @@ var browserSideFind = function(locators, opt_options) {
     const rect = element.getBoundingClientRect();
     window.scroll({
       left: rect.left + window.scrollX,
-      top: rect.top + window.scrollY - (window.innerHeight / 2),
-      behavior: 'smooth'
+      top: rect.top + window.scrollY
     });
   }
 
