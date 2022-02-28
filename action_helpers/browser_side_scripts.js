@@ -243,7 +243,7 @@ var browserSideFind = function(locators, opt_options) {
     if (!candidateElements.length && options.scroll !== false) {
       var maybeDisplayed = all.filter(isMaybeDisplayed);
       if (maybeDisplayed.length == 1 && shouldAutoScroll(maybeDisplayed[0])) {
-        maybeDisplayed[0].scrollIntoView();
+        scrollToHtmlElement(maybeDisplayed[0]);
         // Sticky headers can stack so get all active and compute total height.
         var stickyHeaders = document.querySelectorAll('[data-testing="sticky-header"]');
         var stickyHeaderTotalHeight = 0;
@@ -369,7 +369,7 @@ var browserSideFind = function(locators, opt_options) {
         return isMaybeDisplayed(e.element);
       });
       if (maybeDisplayed.length) {
-        maybeDisplayed[0].element.scrollIntoView();
+        scrollToHtmlElement(maybeDisplayed[0].element);
         candidateElements = all.filter(function(e) {
           return hasCorrectDisplayStatus(e.element);
         });
@@ -544,6 +544,16 @@ var browserSideFind = function(locators, opt_options) {
     // More information: section_nav_ng2 mod.
     return !element.classList.contains('cfc-page-displayName');
   };
+
+  var scrollToHtmlElement = function(element) {
+    const rect = element.getBoundingClientRect();
+    window.scroll({
+      left: rect.left + window.scrollX,
+      top: rect.top + window.scrollY - (window.innerHeight / 2),
+      behavior: 'smooth'
+    });
+  }
+
   // Scrolls to given locator.
   var scrollTo = function(locator) {
     var maybeDisplayed = selectAll(locator).filter(isMaybeDisplayed);
@@ -554,11 +564,11 @@ var browserSideFind = function(locators, opt_options) {
           elementsToString(maybeDisplayed);
     }
     var e = maybeDisplayed[0];
-    e.scrollIntoView();
+    scrollToHtmlElement(e);
     if (!hasCorrectDisplayStatus(e)) {
       throw 'Scrolling to ' + locatorToString(locator) + ' failed. The ' +
           'displayable element did not become displayed after ' +
-          'scrollIntoView(). The element:\n' + e.outerHTML;
+          'scrollToHtmlElement(). The element:\n' + e.outerHTML;
     }
   };
 
