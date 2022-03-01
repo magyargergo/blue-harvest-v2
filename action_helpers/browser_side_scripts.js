@@ -494,10 +494,11 @@ var browserSideFind = function(locators, opt_options) {
   // Checks that an element can be potentially displayed after scoll.
   var isMaybeDisplayed = function(e) {
     const computedStyles = window.getComputedStyle(e);
+    const rect = e.getBoundingClientRect();
     return (
-        e.offsetWidth &&
-        e.offsetHeight &&
-        e.getBoundingClientRect().right > 0 &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.right > 0 &&
         computedStyles.visibility !== 'hidden'
     );
   };
