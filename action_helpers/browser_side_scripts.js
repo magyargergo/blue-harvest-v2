@@ -242,7 +242,7 @@ var browserSideFind = function(locators, opt_options) {
     // Try to auto-scroll to see an element.
     if (!candidateElements.length && options.scroll !== false) {
       var maybeDisplayed = all.filter(isMaybeDisplayed);
-      if (maybeDisplayed.length == 1 && shouldAutoScroll(maybeDisplayed[0])) {
+      if (maybeDisplayed.length === 1 && shouldAutoScroll(maybeDisplayed[0])) {
         scrollToHtmlElement(maybeDisplayed[0]);
         // Sticky headers can stack so get all active and compute total height.
         var stickyHeaders = document.querySelectorAll('[data-testing="sticky-header"]');
@@ -494,8 +494,13 @@ var browserSideFind = function(locators, opt_options) {
 
   // Checks that an element can be potentially displayed after scoll.
   var isMaybeDisplayed = function(e) {
-    return e.offsetWidth && e.offsetHeight &&
-        e.getBoundingClientRect().right > 0;
+    const computedStyles = window.getComputedStyle(e);
+    return (
+        e.offsetWidth &&
+        e.offsetHeight &&
+        e.getBoundingClientRect().right > 0 &&
+        computedStyles.visibility !== 'hidden'
+    );
   };
 
   // Checks if an element or its ancestors are disabled. Returns disabled
