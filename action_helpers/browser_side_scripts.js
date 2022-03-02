@@ -180,7 +180,8 @@ var browserSideFind = function(locators, opt_options) {
     }
     if (options.allowCovered) return DISPLAY_STATUS_ENUM.visible;
     // Check that the element is not covered (by glass, for example).
-    return (hitsElement(x, y, e) || hitsElement(r.left + 1, r.top + 1, e) ||
+    return (hitsElement(x, y, e) ||
+            hitsElement(r.left + 1, r.top + 1, e) ||
             hitsElement(r.left + 1, r.bottom - 1, e) ||
             hitsElement(r.right - 1, r.top + 1, e) ||
             hitsElement(r.right - 1, r.bottom - 1, e)) ?
@@ -468,8 +469,8 @@ var browserSideFind = function(locators, opt_options) {
     return displayStatus(e) === DISPLAY_STATUS_ENUM.visible;
   };
 
-  var isUnseenStyle = function(style) {
-    return style.visibility == 'hidden' || style.display == 'none' ||
+  let isUnseenStyle = function(style) {
+    return style.visibility === 'hidden' || style.display === 'none' ||
           style.opacity == 0;
   };
 
@@ -499,7 +500,7 @@ var browserSideFind = function(locators, opt_options) {
         rect.width > 0 &&
         rect.height > 0 &&
         rect.right > 0 &&
-        computedStyles.visibility !== 'hidden'
+        !isUnseenStyle(computedStyles)
     );
   };
 
@@ -551,13 +552,432 @@ var browserSideFind = function(locators, opt_options) {
     return !element.classList.contains('cfc-page-displayName');
   };
 
-  var scrollToHtmlElement = function(element) {
-    const rect = element.getBoundingClientRect();
-    window.scroll({
-      left: rect.left + window.scrollX,
-      top: rect.top + window.scrollY
+  // Compute what scrolling needs to be done on required scrolling boxes for target to be in view
+  const isElement = function (el) {
+    return typeof el === 'object' && el != null && el.nodeType === 1;
+  };
+  const canOverflow = function (overflow, skipOverflowHiddenElements) {
+    if (skipOverflowHiddenElements && overflow === 'hidden') {
+      return false;
+    }
+    return overflow !== 'visible' && overflow !== 'clip';
+  };
+  const getFrameElement = function (el) {
+    if (!el.ownerDocument || !el.ownerDocument.defaultView) {
+      return null;
+    }
+    try {
+      return el.ownerDocument.defaultView.frameElement;
+    } catch (e) {
+      return null;
+    }
+  };
+  const isHiddenByFrame = function (el) {
+    var frame = getFrameElement(el);
+    if (!frame) {
+      return false;
+    }
+    return (
+        frame.clientHeight < el.scrollHeight || frame.clientWidth < el.scrollWidth
+    );
+  };
+  const isScrollable = function (el, skipOverflowHiddenElements) {
+    if (el.clientHeight < el.scrollHeight || el.clientWidth < el.scrollWidth) {
+      var style = getComputedStyle(el, null);
+      return (
+          canOverflow(style.overflowY, skipOverflowHiddenElements) ||
+          canOverflow(style.overflowX, skipOverflowHiddenElements) ||
+          isHiddenByFrame(el)
+      );
+    }
+    return false;
+  };
+  /**
+   * Find out which edge to align against when logical scroll position is "nearest"
+   * Interesting fact: "nearest" works similarily to "if-needed", if the element is fully visible it will not scroll it
+   *
+   * Legends:
+   * ┌────────┐ ┏ ━ ━ ━ ┓
+   * │ target │   frame
+   * └────────┘ ┗ ━ ━ ━ ┛
+   */
+  const alignNearest = function (
+      scrollingEdgeStart,
+      scrollingEdgeEnd,
+      scrollingSize,
+      scrollingBorderStart,
+      scrollingBorderEnd,
+      elementEdgeStart,
+      elementEdgeEnd,
+      elementSize
+  ) {
+    /**
+     * If element edge A and element edge B are both outside scrolling box edge A and scrolling box edge B
+     *
+     *          ┌──┐
+     *        ┏━│━━│━┓
+     *          │  │
+     *        ┃ │  │ ┃        do nothing
+     *          │  │
+     *        ┗━│━━│━┛
+     *          └──┘
+     *
+     *  If element edge C and element edge D are both outside scrolling box edge C and scrolling box edge D
+     *
+     *    ┏ ━ ━ ━ ━ ┓
+     *   ┌───────────┐
+     *   │┃         ┃│        do nothing
+     *   └───────────┘
+     *    ┗ ━ ━ ━ ━ ┛
+     */
+    if (
+        (elementEdgeStart < scrollingEdgeStart &&
+            elementEdgeEnd > scrollingEdgeEnd) ||
+        (elementEdgeStart > scrollingEdgeStart && elementEdgeEnd < scrollingEdgeEnd)
+    ) {
+      return 0;
+    }
+    /**
+     * If element edge A is outside scrolling box edge A and element height is less than scrolling box height
+     *
+     *          ┌──┐
+     *        ┏━│━━│━┓         ┏━┌━━┐━┓
+     *          └──┘             │  │
+     *  from  ┃      ┃     to  ┃ └──┘ ┃
+     *
+     *        ┗━ ━━ ━┛         ┗━ ━━ ━┛
+     *
+     * If element edge B is outside scrolling box edge B and element height is greater than scrolling box height
+     *
+     *        ┏━ ━━ ━┓         ┏━┌━━┐━┓
+     *                           │  │
+     *  from  ┃ ┌──┐ ┃     to  ┃ │  │ ┃
+     *          │  │             │  │
+     *        ┗━│━━│━┛         ┗━│━━│━┛
+     *          │  │             └──┘
+     *          │  │
+     *          └──┘
+     *
+     * If element edge C is outside scrolling box edge C and element width is less than scrolling box width
+     *
+     *       from                 to
+     *    ┏ ━ ━ ━ ━ ┓         ┏ ━ ━ ━ ━ ┓
+     *  ┌───┐                 ┌───┐
+     *  │ ┃ │       ┃         ┃   │     ┃
+     *  └───┘                 └───┘
+     *    ┗ ━ ━ ━ ━ ┛         ┗ ━ ━ ━ ━ ┛
+     *
+     * If element edge D is outside scrolling box edge D and element width is greater than scrolling box width
+     *
+     *       from                 to
+     *    ┏ ━ ━ ━ ━ ┓         ┏ ━ ━ ━ ━ ┓
+     *        ┌───────────┐   ┌───────────┐
+     *    ┃   │     ┃     │   ┃         ┃ │
+     *        └───────────┘   └───────────┘
+     *    ┗ ━ ━ ━ ━ ┛         ┗ ━ ━ ━ ━ ┛
+     */
+    if (
+        (elementEdgeStart <= scrollingEdgeStart && elementSize <= scrollingSize) ||
+        (elementEdgeEnd >= scrollingEdgeEnd && elementSize >= scrollingSize)
+    ) {
+      return elementEdgeStart - scrollingEdgeStart - scrollingBorderStart;
+    }
+    /**
+     * If element edge B is outside scrolling box edge B and element height is less than scrolling box height
+     *
+     *        ┏━ ━━ ━┓         ┏━ ━━ ━┓
+     *
+     *  from  ┃      ┃     to  ┃ ┌──┐ ┃
+     *          ┌──┐             │  │
+     *        ┗━│━━│━┛         ┗━└━━┘━┛
+     *          └──┘
+     *
+     * If element edge A is outside scrolling box edge A and element height is greater than scrolling box height
+     *
+     *          ┌──┐
+     *          │  │
+     *          │  │             ┌──┐
+     *        ┏━│━━│━┓         ┏━│━━│━┓
+     *          │  │             │  │
+     *  from  ┃ └──┘ ┃     to  ┃ │  │ ┃
+     *                           │  │
+     *        ┗━ ━━ ━┛         ┗━└━━┘━┛
+     *
+     * If element edge C is outside scrolling box edge C and element width is greater than scrolling box width
+     *
+     *           from                 to
+     *        ┏ ━ ━ ━ ━ ┓         ┏ ━ ━ ━ ━ ┓
+     *  ┌───────────┐           ┌───────────┐
+     *  │     ┃     │   ┃       │ ┃         ┃
+     *  └───────────┘           └───────────┘
+     *        ┗ ━ ━ ━ ━ ┛         ┗ ━ ━ ━ ━ ┛
+     *
+     * If element edge D is outside scrolling box edge D and element width is less than scrolling box width
+     *
+     *           from                 to
+     *        ┏ ━ ━ ━ ━ ┓         ┏ ━ ━ ━ ━ ┓
+     *                ┌───┐             ┌───┐
+     *        ┃       │ ┃ │       ┃     │   ┃
+     *                └───┘             └───┘
+     *        ┗ ━ ━ ━ ━ ┛         ┗ ━ ━ ━ ━ ┛
+     *
+     */
+    if (
+        (elementEdgeEnd > scrollingEdgeEnd && elementSize < scrollingSize) ||
+        (elementEdgeStart < scrollingEdgeStart && elementSize > scrollingSize)
+    ) {
+      return elementEdgeEnd - scrollingEdgeEnd + scrollingBorderEnd;
+    }
+    return 0;
+  };
+  const getScrollActions = function (target, options) {
+    var windowWithViewport = window;
+    var scrollMode = options.scrollMode,
+        block = options.block,
+        inline = options.inline,
+        boundary = options.boundary,
+        skipOverflowHiddenElements = options.skipOverflowHiddenElements;
+    // Allow using a callback to check the boundary
+    // The default behavior is to check if the current target matches the boundary element or not
+    // If undefined it'll check that target is never undefined (can happen as we recurse up the tree)
+    var checkBoundary =
+        typeof boundary === 'function'
+            ? boundary
+            : function (node) {
+              return node !== boundary;
+            };
+    if (!isElement(target)) {
+      throw new TypeError('Invalid target');
+    }
+    // Used to handle the top most element that can be scrolled
+    var scrollingElement = document.scrollingElement || document.documentElement;
+    // Collect all the scrolling boxes, as defined in the spec: https://drafts.csswg.org/cssom-view/#scrolling-box
+    var frames = [];
+    var cursor = target;
+    while (isElement(cursor) && checkBoundary(cursor)) {
+      // Move cursor to parent
+      cursor = cursor.parentElement;
+      // Stop when we reach the viewport
+      if (cursor === scrollingElement) {
+        frames.push(cursor);
+        break;
+      }
+      // Skip document.body if it's not the scrollingElement and documentElement isn't independently scrollable
+      if (
+          cursor != null &&
+          cursor === document.body &&
+          isScrollable(cursor) &&
+          !isScrollable(document.documentElement)
+      ) {
+        continue;
+      }
+      // Now we check if the element is scrollable, this code only runs if the loop haven't already hit the viewport or a custom boundary
+      if (cursor != null && isScrollable(cursor, skipOverflowHiddenElements)) {
+        frames.push(cursor);
+      }
+    }
+    // Support pinch-zooming properly, making sure elements scroll into the visual viewport
+    // Browsers that don't support visualViewport will report the layout viewport dimensions on document.documentElement.clientWidth/Height
+    // and viewport dimensions on window.innerWidth/Height
+    // https://www.quirksmode.org/mobile/viewports2.html
+    // https://bokand.github.io/viewport/index.html
+    var viewportWidth = windowWithViewport.visualViewport
+        ? windowWithViewport.visualViewport.width
+        : innerWidth;
+    var viewportHeight = windowWithViewport.visualViewport
+        ? windowWithViewport.visualViewport.height
+        : innerHeight;
+    // Newer browsers supports scroll[X|Y], page[X|Y]Offset is
+    var viewportX = window.scrollX || pageXOffset;
+    var viewportY = window.scrollY || pageYOffset;
+    var _a = target.getBoundingClientRect(),
+        targetHeight = _a.height,
+        targetWidth = _a.width,
+        targetTop = _a.top,
+        targetRight = _a.right,
+        targetBottom = _a.bottom,
+        targetLeft = _a.left;
+    // These values mutate as we loop through and generate scroll coordinates
+    var targetBlock =
+        block === 'start' || block === 'nearest'
+            ? targetTop
+            : block === 'end'
+                ? targetBottom
+                : targetTop + targetHeight / 2; // block === 'center
+    var targetInline =
+        inline === 'center'
+            ? targetLeft + targetWidth / 2
+            : inline === 'end'
+                ? targetRight
+                : targetLeft; // inline === 'start || inline === 'nearest
+    // Collect new scroll positions
+    var computations = [];
+    // In chrome there's no longer a difference between caching the `frames.length`
+    // to a var or not, so we don't in this case (size > speed anyways)
+    for (var index = 0; index < frames.length; index++) {
+      var frame = frames[index];
+      var _b = frame.getBoundingClientRect(),
+          height = _b.height,
+          width = _b.width,
+          top = _b.top,
+          right = _b.right,
+          bottom = _b.bottom,
+          left = _b.left;
+      // If the element is already visible we can end it here
+      // @TODO targetBlock and targetInline should be taken into account to be compliant with
+      //  https://github.com/w3c/csswg-drafts/pull/1805/files#diff-3c17f0e43c20f8ecf89419d49e7ef5e0R1333
+      if (
+          scrollMode === 'if-needed' &&
+          targetTop >= 0 &&
+          targetLeft >= 0 &&
+          targetBottom <= viewportHeight &&
+          targetRight <= viewportWidth &&
+          targetTop >= top &&
+          targetBottom <= bottom &&
+          targetLeft >= left &&
+          targetRight <= right
+      ) {
+        // Break the loop and return the computations for things that are not fully visible
+        return computations;
+      }
+      var frameStyle = getComputedStyle(frame);
+      var borderLeft = parseInt(frameStyle.borderLeftWidth, 10);
+      var borderTop = parseInt(frameStyle.borderTopWidth, 10);
+      var borderRight = parseInt(frameStyle.borderRightWidth, 10);
+      var borderBottom = parseInt(frameStyle.borderBottomWidth, 10);
+      var blockScroll = 0;
+      var inlineScroll = 0;
+
+      // The property existance checks for offfset[Width|Height] is because only
+      // HTMLElement objects have them, but any Element might pass by here.
+      var scrollbarWidth =
+          'offsetWidth' in frame
+              ? frame.offsetWidth - frame.clientWidth - borderLeft - borderRight
+              : 0;
+      var scrollbarHeight =
+          'offsetHeight' in frame
+              ? frame.offsetHeight - frame.clientHeight - borderTop - borderBottom
+              : 0;
+      if (scrollingElement === frame) {
+        // Handle viewport logic (document.documentElement or document.body)
+        if (block === 'start') {
+          blockScroll = targetBlock;
+        } else if (block === 'end') {
+          blockScroll = targetBlock - viewportHeight;
+        } else if (block === 'nearest') {
+          blockScroll = alignNearest(
+              viewportY,
+              viewportY + viewportHeight,
+              viewportHeight,
+              borderTop,
+              borderBottom,
+              viewportY + targetBlock,
+              viewportY + targetBlock + targetHeight,
+              targetHeight
+          );
+        } else {
+          // block === 'center' is the default
+          blockScroll = targetBlock - viewportHeight / 2;
+        }
+        if (inline === 'start') {
+          inlineScroll = targetInline;
+        } else if (inline === 'center') {
+          inlineScroll = targetInline - viewportWidth / 2;
+        } else if (inline === 'end') {
+          inlineScroll = targetInline - viewportWidth;
+        } else {
+          // inline === 'nearest' is the default
+          inlineScroll = alignNearest(
+              viewportX,
+              viewportX + viewportWidth,
+              viewportWidth,
+              borderLeft,
+              borderRight,
+              viewportX + targetInline,
+              viewportX + targetInline + targetWidth,
+              targetWidth
+          );
+        }
+        // Apply scroll position offsets and ensure they are within bounds
+        blockScroll = Math.max(0, blockScroll + viewportY);
+        inlineScroll = Math.max(0, inlineScroll + viewportX);
+      } else {
+        // Handle each scrolling frame that might exist between the target and the viewport
+        if (block === 'start') {
+          blockScroll = targetBlock - top - borderTop;
+        } else if (block === 'end') {
+          blockScroll = targetBlock - bottom + borderBottom + scrollbarHeight;
+        } else if (block === 'nearest') {
+          blockScroll = alignNearest(
+              top,
+              bottom,
+              height,
+              borderTop,
+              borderBottom + scrollbarHeight,
+              targetBlock,
+              targetBlock + targetHeight,
+              targetHeight
+          );
+        } else {
+          // block === 'center' is the default
+          blockScroll = targetBlock - (top + height / 2) + scrollbarHeight / 2;
+        }
+        if (inline === 'start') {
+          inlineScroll = targetInline - left - borderLeft;
+        } else if (inline === 'center') {
+          inlineScroll = targetInline - (left + width / 2) + scrollbarWidth / 2;
+        } else if (inline === 'end') {
+          inlineScroll = targetInline - right + borderRight + scrollbarWidth;
+        } else {
+          // inline === 'nearest' is the default
+          inlineScroll = alignNearest(
+              left,
+              right,
+              width,
+              borderLeft,
+              borderRight + scrollbarWidth,
+              targetInline,
+              targetInline + targetWidth,
+              targetWidth
+          );
+        }
+        var scrollLeft = frame.scrollLeft,
+            scrollTop = frame.scrollTop;
+        // Ensure scroll coordinates are not out of bounds while applying scroll offsets
+        blockScroll = Math.max(
+            0,
+            Math.min(
+                scrollTop + blockScroll,
+                frame.scrollHeight - height + scrollbarHeight
+            )
+        );
+        inlineScroll = Math.max(
+            0,
+            Math.min(
+                scrollLeft + inlineScroll,
+                frame.scrollWidth - width + scrollbarWidth
+            )
+        );
+        // Cache the offset so that parent frames can scroll this into view correctly
+        targetBlock += scrollTop - blockScroll;
+        targetInline += scrollLeft - inlineScroll;
+      }
+      computations.push({ el: frame, top: blockScroll, left: inlineScroll });
+    }
+    return computations;
+  };
+
+  const scrollToHtmlElement = function(element) {
+    const actions = getScrollActions(element, {
+      scrollMode: 'if-needed',
+      block: 'nearest',
+      inline: 'nearest',
     });
-  }
+    actions.forEach(({ el, top, left }) => {
+      el.scrollTop = top
+      el.scrollLeft = left
+    })
+  };
 
   // Scrolls to given locator.
   var scrollTo = function(locator) {
