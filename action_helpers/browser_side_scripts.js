@@ -154,12 +154,14 @@ var browserSideFind = function(locators, opt_options) {
    * @param {Element} e
    * @returns {string} - a value from DISPLAY_STATUS_ENUM
    */
-  let displayStatus = function(e) {
+  const displayStatus = function(e) {
     // Check that parent elements are displayed.
-    let r = e.getBoundingClientRect();
-    if (!r.height || !r.width) return DISPLAY_STATUS_ENUM.empty;
-    let x = (r.left + r.right) / 2;
-    let y = (r.top + r.bottom) / 2;
+    const r = e.getBoundingClientRect();
+    if (!r.height || !r.width) {
+      return DISPLAY_STATUS_ENUM.empty;
+    }
+    const x = (r.left + r.right) / 2;
+    const y = (r.top + r.bottom) / 2;
     if (hitsAncestorButtonOrLink(e, x, y)) {
       return DISPLAY_STATUS_ENUM.visible;
     }
@@ -492,15 +494,14 @@ var browserSideFind = function(locators, opt_options) {
     return (e.bottom - f.top > epsilon) && (f.bottom - e.top > epsilon);
   };
 
-  // Checks that an element can be potentially displayed after scoll.
-  var isMaybeDisplayed = function(e) {
-    const computedStyles = window.getComputedStyle(e);
+  // Checks that an element can be potentially displayed after scroll.
+  const isMaybeDisplayed = function(e) {
+    // Checks the dimensions of the element
     const rect = e.getBoundingClientRect();
     return (
         rect.width > 0 &&
         rect.height > 0 &&
-        rect.right > 0 &&
-        !isUnseenStyle(computedStyles)
+        rect.right > 0
     );
   };
 
@@ -848,13 +849,13 @@ var browserSideFind = function(locators, opt_options) {
       var blockScroll = 0;
       var inlineScroll = 0;
 
-      // The property existance checks for offfset[Width|Height] is because only
+      // The property existence checks for offset[Width|Height] is because only
       // HTMLElement objects have them, but any Element might pass by here.
-      var scrollbarWidth =
+      const scrollbarWidth =
           'offsetWidth' in frame
               ? frame.offsetWidth - frame.clientWidth - borderLeft - borderRight
               : 0;
-      var scrollbarHeight =
+      const scrollbarHeight =
           'offsetHeight' in frame
               ? frame.offsetHeight - frame.clientHeight - borderTop - borderBottom
               : 0;
@@ -970,13 +971,13 @@ var browserSideFind = function(locators, opt_options) {
   const scrollToHtmlElement = function(element) {
     const actions = getScrollActions(element, {
       scrollMode: 'if-needed',
-      block: 'nearest',
+      block: 'center',
       inline: 'nearest',
     });
     actions.forEach(({ el, top, left }) => {
-      el.scrollTop = top
-      el.scrollLeft = left
-    })
+      el.scrollTop = top;
+      el.scrollLeft = left;
+    });
   };
 
   // Scrolls to given locator.
