@@ -85,10 +85,16 @@ async function writeScreenshot(folder, data) {
 }
 
 export async function addMask(el: ElementFinder, color, zIndex = 10000, xOffset = 0, yOffset = 0, sizeMultiplier = 1.0) {
-  let size = await el.getSize();
-  let location = await el.getLocation();
-  const mask: WebElement = <WebElement> await browser.executeScript(mask_fn, location.x + xOffset, location.y + yOffset,
-    size.width*sizeMultiplier, size.height*sizeMultiplier, color, zIndex);
+  let rect = await el.getRect();
+  const mask: WebElement = <WebElement> await browser.executeScript(
+      mask_fn,
+      rect.x + xOffset,
+      rect.y + yOffset,
+      rect.width * sizeMultiplier,
+      rect.height * sizeMultiplier,
+      color,
+      zIndex
+  );
   return mask;
 }
 
