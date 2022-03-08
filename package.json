@@ -31,7 +31,7 @@
   "homepage": "https://github.com/angular-seattle/blue-harvest#readme",
   "dependencies": {
     "looks-same": "^3.3.0",
-    "protractor": "npm:@gmagyar/protractor@6.0.0-fork.2"
+    "protractor": "npm:@freelancercom/protractor@6.0.0-fork.2"
   },
   "devDependencies": {
     "@types/node": "^12.13.0",
